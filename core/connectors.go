@@ -15,8 +15,8 @@ import (
 )
 
 type ConnectorEventListener struct {
-	Name  string
 	Topic common.Hash
+	Name  string
 }
 
 type Connector struct {
@@ -24,7 +24,7 @@ type Connector struct {
 	ConnectorClient    *ethclient.Client
 	ConnectorContracts []common.Address
 	ConnectorListeners map[string]ConnectorEventListener
-	ConnectorCallback  func(eventName string, log types.Log)
+	ConnectorCallback  func(event *ConnectorEventListener, log types.Log)
 }
 
 func (x *Connector) invalidConnectionError() error {
@@ -73,7 +73,7 @@ func (x *Connector) SetConnectorListeners(events map[string]ConnectorEventListen
 	x.ConnectorListeners = events
 }
 
-func (x *Connector) SetConnectorCallback(callback func(eventName string, log types.Log)) {
+func (x *Connector) SetConnectorCallback(callback func(event *ConnectorEventListener, log types.Log)) {
 	x.ConnectorCallback = callback
 }
 
@@ -101,8 +101,10 @@ func (x *Connector) ConnectWithEvents() {
 			case <-sub.Err():
 				fmt.Println("Error reading blockchain logs... passing")
 			case vLog := <-logs:
-				if x.isValidEventTopic(vLog.Topics[0]) {
-					x.evaluateEvent(vLog)
+				event := x.validateEvent(vLog.Topics[0])
+
+				if event != nil {
+					x.evaluateEvent(vLog, event)
 				}
 			}
 		}
@@ -111,18 +113,20 @@ func (x *Connector) ConnectWithEvents() {
 	wg.Wait()
 }
 
-func (x *Connector) isValidEventTopic(topic common.Hash) bool {
+func (x *Connector) validateEvent(topic common.Hash) *ConnectorEventListener {
 	for _, v := range x.ConnectorListeners {
 		if v.Topic == topic {
-			return true
+			return &v
 		}
 	}
 
-	return false
+	return nil
 }
 
-func (x *Connector) evaluateEvent(log types.Log) {
-
+func (x *Connector) evaluateEvent(log types.Log, event *ConnectorEventListener) {
+	if x.ConnectorCallback != nil {
+		x.ConnectorCallback(event, log)
+	}
 }
 
 func NewConnector(rpc string) (*Connector, error) {

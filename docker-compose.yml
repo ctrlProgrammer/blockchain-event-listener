@@ -1,0 +1,7 @@
+version: "3.9"
+
+services:
+  remixapp:
+    container_name: evm-event-listener
+    image: evm-event-listener
+    build: .

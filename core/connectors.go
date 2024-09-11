@@ -14,10 +14,17 @@ import (
 	"github.com/ethereum/go-ethereum/ethclient"
 )
 
+type ConnectorEventListener struct {
+	Name  string
+	Topic common.Hash
+}
+
 type Connector struct {
 	RPC                *string
 	ConnectorClient    *ethclient.Client
 	ConnectorContracts []common.Address
+	ConnectorListeners map[string]ConnectorEventListener
+	ConnectorCallback  func(eventName string, log types.Log)
 }
 
 func (x *Connector) invalidConnectionError() error {
@@ -62,6 +69,14 @@ func (x *Connector) SetConnectorContracts(contracts []common.Address) {
 	x.ConnectorContracts = contracts
 }
 
+func (x *Connector) SetConnectorListeners(events map[string]ConnectorEventListener) {
+	x.ConnectorListeners = events
+}
+
+func (x *Connector) SetConnectorCallback(callback func(eventName string, log types.Log)) {
+	x.ConnectorCallback = callback
+}
+
 func (x *Connector) ConnectWithEvents() {
 	query := ethereum.FilterQuery{
 		Addresses: x.ConnectorContracts,
@@ -84,14 +99,30 @@ func (x *Connector) ConnectWithEvents() {
 		for {
 			select {
 			case <-sub.Err():
-				log.Fatal(err)
+				fmt.Println("Error reading blockchain logs... passing")
 			case vLog := <-logs:
-				fmt.Println(vLog)
+				if x.isValidEventTopic(vLog.Topics[0]) {
+					x.evaluateEvent(vLog)
+				}
 			}
 		}
 	}(i, &wg)
 
 	wg.Wait()
+}
+
+func (x *Connector) isValidEventTopic(topic common.Hash) bool {
+	for _, v := range x.ConnectorListeners {
+		if v.Topic == topic {
+			return true
+		}
+	}
+
+	return false
+}
+
+func (x *Connector) evaluateEvent(log types.Log) {
+
 }
 
 func NewConnector(rpc string) (*Connector, error) {

@@ -19,7 +19,7 @@ type ConnectorEventListener struct {
 }
 
 type Connector struct {
-	Network            *Network
+	RPC                *string
 	ConnectorClient    *ethclient.Client
 	ConnectorContracts []common.Address
 	ConnectorListeners map[string]ConnectorEventListener
@@ -31,11 +31,11 @@ func (x *Connector) InvalidConnectionError() error {
 }
 
 func (x *Connector) CreateConnection() error {
-	if x.Network.RPC == nil {
+	if x.RPC == nil {
 		return errors.New("invalid rpc connection")
 	}
 
-	client, err := ethclient.Dial(*x.Network.RPC)
+	client, err := ethclient.Dial(*x.RPC)
 
 	if err != nil {
 		return err
@@ -47,7 +47,7 @@ func (x *Connector) CreateConnection() error {
 }
 
 func (x *Connector) IsValidConnection() bool {
-	return x.Network != nil && x.Network.RPC != nil && x.ConnectorClient != nil
+	return x.RPC != nil && x.ConnectorClient != nil
 }
 
 func (x *Connector) SetConnectorContracts(contracts []common.Address) error {
@@ -138,9 +138,9 @@ func (x *Connector) evaluateEvent(log types.Log, event *ConnectorEventListener) 
 	}
 }
 
-func NewConnector(network *Network) (*Connector, error) {
+func NewConnector(rpc *string) (*Connector, error) {
 	connector := Connector{
-		Network: network,
+		RPC: rpc,
 	}
 
 	err := connector.CreateConnection()

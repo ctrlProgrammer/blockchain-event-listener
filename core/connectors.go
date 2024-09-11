@@ -1,11 +1,10 @@
-package connectors
+package core
 
 import (
 	"context"
 	"errors"
 	"fmt"
 	"log"
-	"math/big"
 	"sync"
 
 	"github.com/ethereum/go-ethereum"
@@ -20,23 +19,23 @@ type ConnectorEventListener struct {
 }
 
 type Connector struct {
-	RPC                *string
+	Network            *Network
 	ConnectorClient    *ethclient.Client
 	ConnectorContracts []common.Address
 	ConnectorListeners map[string]ConnectorEventListener
 	ConnectorCallback  func(event *ConnectorEventListener, log types.Log)
 }
 
-func (x *Connector) invalidConnectionError() error {
+func (x *Connector) InvalidConnectionError() error {
 	return errors.New("invalid connection")
 }
 
 func (x *Connector) CreateConnection() error {
-	if x.RPC == nil {
+	if x.Network.RPC == nil {
 		return errors.New("invalid rpc connection")
 	}
 
-	client, err := ethclient.Dial(*x.RPC)
+	client, err := ethclient.Dial(*x.Network.RPC)
 
 	if err != nil {
 		return err
@@ -47,37 +46,45 @@ func (x *Connector) CreateConnection() error {
 	return nil
 }
 
-func (x *Connector) isValidConnection() bool {
-	return x.RPC != nil && x.ConnectorClient != nil
+func (x *Connector) IsValidConnection() bool {
+	return x.Network != nil && x.Network.RPC != nil && x.ConnectorClient != nil
 }
 
-func (x *Connector) GetBalance(address common.Address) (*big.Int, error) {
-	if !x.isValidConnection() {
-		return nil, x.invalidConnectionError()
+func (x *Connector) SetConnectorContracts(contracts []common.Address) error {
+	if !x.IsValidConnection() {
+		return x.InvalidConnectionError()
 	}
 
-	balance, err := x.ConnectorClient.BalanceAt(context.Background(), address, nil)
-
-	if err != nil {
-		return nil, err
-	}
-
-	return balance, nil
-}
-
-func (x *Connector) SetConnectorContracts(contracts []common.Address) {
 	x.ConnectorContracts = contracts
+
+	return nil
 }
 
-func (x *Connector) SetConnectorListeners(events map[string]ConnectorEventListener) {
+func (x *Connector) SetConnectorListeners(events map[string]ConnectorEventListener) error {
+	if !x.IsValidConnection() {
+		return x.InvalidConnectionError()
+	}
+
 	x.ConnectorListeners = events
+
+	return nil
 }
 
-func (x *Connector) SetConnectorCallback(callback func(event *ConnectorEventListener, log types.Log)) {
+func (x *Connector) SetConnectorCallback(callback func(event *ConnectorEventListener, log types.Log)) error {
+	if !x.IsValidConnection() {
+		return x.InvalidConnectionError()
+	}
+
 	x.ConnectorCallback = callback
+
+	return nil
 }
 
-func (x *Connector) ConnectWithEvents() {
+func (x *Connector) ConnectWithEvents() error {
+	if !x.IsValidConnection() {
+		return x.InvalidConnectionError()
+	}
+
 	query := ethereum.FilterQuery{
 		Addresses: x.ConnectorContracts,
 	}
@@ -111,6 +118,8 @@ func (x *Connector) ConnectWithEvents() {
 	}(i, &wg)
 
 	wg.Wait()
+
+	return nil
 }
 
 func (x *Connector) validateEvent(topic common.Hash) *ConnectorEventListener {
@@ -129,9 +138,9 @@ func (x *Connector) evaluateEvent(log types.Log, event *ConnectorEventListener) 
 	}
 }
 
-func NewConnector(rpc string) (*Connector, error) {
+func NewConnector(network *Network) (*Connector, error) {
 	connector := Connector{
-		RPC: &rpc,
+		Network: network,
 	}
 
 	err := connector.CreateConnection()

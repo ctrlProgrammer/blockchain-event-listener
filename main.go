@@ -13,6 +13,8 @@ func listenEvent(event *connectors.ConnectorEventListener, log types.Log) {
 }
 
 func main() {
+	arbNetwork := connectors.NewNetwork("Arbitrum Sepolia", "wss://arb-sepolia.g.alchemy.com/v2/6QUL7GY-FZKzuH6OouFvQHbhuqYugJQ-")
+
 	listeners := make(map[string]connectors.ConnectorEventListener)
 
 	listeners["USDTransfer"] = connectors.ConnectorEventListener{
@@ -20,11 +22,12 @@ func main() {
 		Topic: common.HexToHash("0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef"),
 	}
 
-	arbitrumRPC := "wss://arb-mainnet.g.alchemy.com/v2/6QUL7GY-FZKzuH6OouFvQHbhuqYugJQ-"
-	arbConnector, _ := connectors.NewConnector(arbitrumRPC)
+	arbConnector, _ := connectors.NewConnector(arbNetwork)
 
 	arbConnector.SetConnectorCallback(listenEvent)
 	arbConnector.SetConnectorListeners(listeners)
 	arbConnector.SetConnectorContracts([]common.Address{common.HexToAddress("0xB8981C1E85f5Acfbf1760Cb4DB3933526d8a269e")})
+	arbConnector.ConnectWithEvents()
 
+	select {}
 }

@@ -24,6 +24,7 @@ func main() {
 	arbConnector, _ := connectors.NewConnector(arbitrumRPC)
 
 	arbConnector.SetConnectorCallback(listenEvent)
-	arbConnector.SetConnectorContracts([]common.Address{common.HexToAddress("0xB8981C1E85f5Acfbf1760Cb4DB3933526d8a269e")})
 	arbConnector.SetConnectorListeners(listeners)
+	arbConnector.SetConnectorContracts([]common.Address{common.HexToAddress("0xB8981C1E85f5Acfbf1760Cb4DB3933526d8a269e")})
+
 }
